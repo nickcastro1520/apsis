@@ -2,6 +2,8 @@
 
 Click-drag gravity sandbox. Fling moons, planets, stars, and black holes — then watch them orbit, slingshot, and collide.
 
+**GitHub:** https://github.com/nickcastro1520/apsis
+
 ## Play
 
 - **Drag** to fling a body
@@ -12,6 +14,8 @@ Click-drag gravity sandbox. Fling moons, planets, stars, and black holes — the
 
 Dock controls: time scale, trails, figure-8 choreography, reset, clear.
 
-## Deploy
+## Hosting
 
-This is a static site (`index.html` + `app.js`). Point Vercel (or GitHub Pages) at the repo root.
+Static site (`index.html` + `app.js` + `sim.js`). Import this repo in [Vercel](https://vercel.com/new) — framework preset **Other**, root directory `.`
+
+Vercel project: https://vercel.com/nickcastro1520s-projects/apsis
