@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Apsis — gravity sandbox</title>
+  <meta name="description" content="Click-drag to fling planets. Watch them orbit, slingshot, and collide." />
+  <meta name="theme-color" content="#07080b" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@450;560;650&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #07080b;
+      --fg: #e8e9ed;
+      --muted: #8b8e98;
+      --surface: #121318;
+      --surface-2: #1a1b21;
+      --accent: #c8ccd4;
+      --accent-fg: #0c0d10;
+      --danger: #d98a7a;
+      --border: rgba(232, 233, 237, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: Figtree, ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+    .hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    h1 { font-family: "Instrument Serif", Georgia, serif; font-style: italic; font-weight: 400; font-size: clamp(2rem, 5vw, 2.6rem); letter-spacing: -0.04em; margin: 0; line-height: 1; }
+    .kicker { margin: 6px 0 0; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 560; }
+    .count { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; }
+    .count.cap { color: var(--danger); }
+    .dock-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .hint { margin: 0; max-width: 22rem; text-align: center; font-size: 12px; line-height: 1.4; color: var(--muted); }
+    .dock { pointer-events: auto; width: 100%; max-width: 36rem; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border); border-radius: 14px; padding: 8px; backdrop-filter: blur(16px); }
+    .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+    .presets button, .icon-btn {
+      appearance: none; border: 0; background: transparent; color: var(--muted);
+      height: 44px; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 560;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+      transition: background .15s, color .15s, transform .12s;
+    }
+    .presets button:hover, .icon-btn:hover { background: var(--surface-2); color: var(--fg); }
+    .presets button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+    .presets button:active, .icon-btn:active { transform: scale(0.98); }
+    .row { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+    .icon-btn { width: 44px; flex: 0 0 44px; }
+    .icon-btn.danger:hover { color: var(--danger); }
+    .icon-btn svg { width: 16px; height: 16px; }
+    .scale { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 4px; }
+    .scale span { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted); width: 2.4rem; }
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 99px;
+      background: var(--surface-2); outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px; border-radius: 99px; background: var(--fg); cursor: pointer; border: 0;
+    }
+    @media (max-width: 640px) {
+      .count { display: none; }
+      .mobile-count { display: block; margin-top: 8px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted); }
+      .scale .desk { display: none; }
+    }
+    @media (min-width: 641px) { .mobile-count { display: none; } }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div class="hud">
+    <header>
+      <div>
+        <h1>Apsis</h1>
+        <p class="kicker">Gravity sandbox</p>
+        <p class="mobile-count" id="count-m">0 bodies</p>
+      </div>
+      <div class="count" id="count">0 bodies</div>
+    </header>
+    <div class="dock-wrap">
+      <p class="hint" id="hint">Drag to fling a body. Place a star first if you want an orbit.</p>
+      <div class="dock">
+        <div class="presets" id="presets"></div>
+        <div class="row">
+          <button class="icon-btn" id="pause" title="Pause" aria-label="Pause">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </button>
+          <div class="scale">
+            <span class="desk" id="scale-l">1×</span>
+            <input id="scale" type="range" min="0.25" max="4" step="0.25" value="1" aria-label="Time scale" />
+            <span id="scale-r">1×</span>
+          </div>
+          <button class="icon-btn" id="trails" title="Trails" aria-pressed="true" aria-label="Toggle trails">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 17c4-8 8-10 18-10"/><path d="M3 12c5-5 9-6 18-4"/></svg>
+          </button>
+          <button class="icon-btn" id="eight" title="Figure-8 choreography" aria-label="Figure-8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 12c-3-4-8-4-8 0s5 4 8 0 8-4 8 0-5 4-8 0"/></svg>
+          </button>
+          <button class="icon-btn" id="reset" title="Reset system" aria-label="Reset">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="8"/><ellipse cx="12" cy="12" rx="3" ry="8"/><path d="M4 12h16"/></svg>
+          </button>
+          <button class="icon-btn danger" id="clear" title="Clear all" aria-label="Clear">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 12h8l1-12"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
